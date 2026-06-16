@@ -105,6 +105,11 @@ public class AiCommands {
                                                 .executes(ctx -> setSettingInt(ctx, "max_tokens",
                                                         IntegerArgumentType.getInteger(ctx, "value")))))
 
+                                .then(Commands.literal("max_task_seconds")
+                                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 3600))
+                                                .executes(ctx -> setSettingInt(ctx, "max_task_seconds",
+                                                        IntegerArgumentType.getInteger(ctx, "value")))))
+
                                 .then(Commands.literal("follow_distance")
                                         .then(Commands.argument("value", DoubleArgumentType.doubleArg(1.0, 32.0))
                                                 .executes(ctx -> setSettingDouble(ctx, "follow_distance",
@@ -404,6 +409,7 @@ public class AiCommands {
                 "§eMax tokens:     §f" + cfg.maxNewTokens + "\n" +
                 "§eFollow dist:    §f" + cfg.followDistance + "\n" +
                 "§eGuard radius:   §f" + cfg.guardRadius + "\n" +
+                "§eMax task secs:  §f" + (cfg.maxTaskSeconds == 0 ? "unlimited" : cfg.maxTaskSeconds) + "\n" +
                 "§7Tip: open the full menu with §f/ai menu§7 (or sneak-right-click the assistant). "
                         + "Or change one value with /ai settings <key> <value>."
         ));
@@ -447,7 +453,10 @@ public class AiCommands {
         if (player == null) return 0;
         ModConfig cfg = ModConfig.get();
 
-        if ("max_tokens".equals(key)) cfg.maxNewTokens = value;
+        switch (key) {
+            case "max_tokens" -> cfg.maxNewTokens = value;
+            case "max_task_seconds" -> cfg.maxTaskSeconds = value;
+        }
 
         ModConfig.save();
         player.sendSystemMessage(Component.literal("§a[Settings] §f" + key + " §7= §f" + value));

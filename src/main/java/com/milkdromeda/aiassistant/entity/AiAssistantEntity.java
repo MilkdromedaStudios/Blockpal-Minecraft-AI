@@ -64,6 +64,8 @@ public class AiAssistantEntity extends PathfinderMob {
     private final AiTaskManager taskManager;
     private BuildGoal buildGoal;
     private int idleMessageTimer = 0;
+    /** Tick the current task started, used by the watchdog to stop runaway loops. */
+    private int taskStartTick = 0;
     /** True while an "active analysis" classification is in flight (prevents floods). */
     private boolean analyzing = false;
     /** Earliest tick the next active-mode analysis may run (rate-limits API calls). */
@@ -159,6 +161,18 @@ public class AiAssistantEntity extends PathfinderMob {
         // Combat and retreat are handled reflexively by SurvivalReflexGoal in
         // every mode, so the assistant stays responsive even mid-plan.
 
+        // Watchdog: stop a task that's been running too long — a plan stuck
+        // repeating, or an ongoing loop that never ends — so it can't lag forever.
+        if (mode == Mode.EXECUTING) {
+            int limitTicks = ModConfig.get().maxTaskSeconds * 20;
+            if (limitTicks > 0 && tickCount - taskStartTick > limitTicks) {
+                broadcastMessage("That task ran too long without finishing — stopping it. Ask again if you still need it.");
+                taskManager.clearPlan();
+                pendingTask = null;
+                mode = Mode.FOLLOWING;
+            }
+        }
+
         if (mode == Mode.EXECUTING && !taskManager.isWaiting() && !taskManager.hasPlan()) {
             if (taskManager.isLooping()) {
                 // Ongoing activity (patrol/guard/explore/keep-building): re-plan and continue.
@@ -177,6 +191,7 @@ public class AiAssistantEntity extends PathfinderMob {
         }
         pendingTask = task;
         mode = Mode.EXECUTING;
+        taskStartTick = tickCount;
         taskManager.clearPlan();
         broadcastMessage("On it — working on: " + task);
         taskManager.requestPlan(task);

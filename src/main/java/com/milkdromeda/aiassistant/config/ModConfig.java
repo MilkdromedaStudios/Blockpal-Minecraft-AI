@@ -5,11 +5,20 @@ import com.google.gson.GsonBuilder;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.*;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 
 public class ModConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Path CONFIG_PATH = FabricLoader.getInstance()
+    // Settings (including the API key) live in their own folder under the game's
+    // config directory. That directory is untouched when you replace the mod jar,
+    // so your key and preferences carry over when you update the mod.
+    private static final Path CONFIG_DIR = FabricLoader.getInstance()
+            .getConfigDir().resolve("ai-assistant");
+    private static final Path CONFIG_PATH = CONFIG_DIR.resolve("config.json");
+    // Older builds stored a single file here; it's migrated automatically.
+    private static final Path LEGACY_PATH = FabricLoader.getInstance()
             .getConfigDir().resolve("ai-assistant.json");
 
     private static ModConfig instance;
@@ -52,28 +61,67 @@ public class ModConfig {
     // assets/ai-assistant/textures/entity/skins/<name>.png.
     public String defaultSkin = "default";
 
+    // Safety cap: automatically stop a running task after this many seconds, so a
+    // task stuck in an endless loop can't keep running (and lagging) forever.
+    // Ongoing activities like patrol/guard count against this too. 0 = no limit.
+    public int maxTaskSeconds = 300;
+
     public static ModConfig get() {
         if (instance == null) load();
         return instance;
     }
 
+    /** Loads settings, migrating the legacy file and surviving missing/corrupt data. */
     public static void load() {
-        if (CONFIG_PATH.toFile().exists()) {
-            try (Reader r = new FileReader(CONFIG_PATH.toFile())) {
-                instance = GSON.fromJson(r, ModConfig.class);
-                return;
-            } catch (IOException ignored) {}
+        Path source = Files.exists(CONFIG_PATH) ? CONFIG_PATH
+                : (Files.exists(LEGACY_PATH) ? LEGACY_PATH : null);
+        if (source != null) {
+            try (Reader r = Files.newBufferedReader(source)) {
+                ModConfig loaded = GSON.fromJson(r, ModConfig.class);
+                if (loaded != null) {
+                    instance = loaded;
+                    instance.normalize();
+                    save();   // (re)write into the folder, migrating the legacy file across
+                    return;
+                }
+            } catch (Exception e) {
+                // Don't lose a recoverable key: keep the bad file as .bak, then fall
+                // back to defaults rather than failing to start.
+                backup(source);
+                System.err.println("[AI-Assistant] Couldn't read config (" + e.getMessage()
+                        + "); starting from defaults. Previous file kept as .bak");
+            }
         }
         instance = new ModConfig();
         save();
     }
 
     public static void save() {
-        try (Writer w = new FileWriter(CONFIG_PATH.toFile())) {
-            GSON.toJson(instance, w);
+        try {
+            Files.createDirectories(CONFIG_DIR);
+            try (Writer w = Files.newBufferedWriter(CONFIG_PATH)) {
+                GSON.toJson(instance, w);
+            }
         } catch (IOException e) {
             System.err.println("[AI-Assistant] Failed to save config: " + e.getMessage());
         }
+    }
+
+    /** Fills in sensible defaults for any field that came back null/blank/invalid. */
+    private void normalize() {
+        if (hfToken == null) hfToken = "";
+        if (hfModel == null || hfModel.isBlank()) hfModel = "mistralai/Mistral-7B-Instruct-v0.2";
+        if (apiUrl == null || apiUrl.isBlank()) apiUrl = "https://router.huggingface.co/v1/chat/completions";
+        if (defaultName == null || defaultName.isBlank()) defaultName = "Ethan";
+        if (defaultSkin == null || defaultSkin.isBlank()) defaultSkin = "default";
+        if (maxTaskSeconds < 0) maxTaskSeconds = 0;
+    }
+
+    private static void backup(Path source) {
+        try {
+            Files.copy(source, source.resolveSibling(source.getFileName() + ".bak"),
+                    StandardCopyOption.REPLACE_EXISTING);
+        } catch (IOException ignored) {}
     }
 
     public boolean hasApiToken() {
