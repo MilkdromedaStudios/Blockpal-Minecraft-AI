@@ -337,6 +337,9 @@ The finished mod lands in **`build/libs/`**:
 Copy the main jar into the `mods/` folder of a Fabric-enabled client or server
 (you also need **Fabric API** there).
 
+Don't want to build it yourself? Tested, ready-to-use jars are kept in
+[`builds/`](builds/) — grab the latest one and drop it straight into `mods/`.
+
 ### Run it in a dev environment
 
 Loom generates ready-to-go run configurations — no separate install needed:
