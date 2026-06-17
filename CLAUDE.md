@@ -127,6 +127,13 @@ can do and how it evolved.
 
 ## Changelog
 
+### 2.8.2
+- **Crash fix** — `MINE_AREA` now breaks one block per tick (queued) instead of
+  all 216 blocks at once. Breaking 216 blocks in a single server tick caused
+  massive lighting/update cascades that froze the server long enough for
+  Minecraft's own watchdog to kill the process.
+- `mineQueue` is cleared on step change and goal stop so state never bleeds.
+
 ### 2.8.1
 - **Performance fix** — rate-limit plan requests to a minimum of 30 s apart;
   hard backstop of 5 s inside `AiTaskManager.requestPlan()` prevents API floods
