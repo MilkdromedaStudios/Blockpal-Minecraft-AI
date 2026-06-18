@@ -66,6 +66,10 @@ public class ModConfig {
     // Ongoing activities like patrol/guard count against this too. 0 = no limit.
     public int maxTaskSeconds = 300;
 
+    // Performance preset last applied by the user: "opus", "normal", or "potato".
+    // Selecting a preset auto-fills several settings at once in the config GUI.
+    public String performancePreset = "normal";
+
     public static ModConfig get() {
         if (instance == null) load();
         return instance;
@@ -115,6 +119,7 @@ public class ModConfig {
         if (defaultName == null || defaultName.isBlank()) defaultName = "Ethan";
         if (defaultSkin == null || defaultSkin.isBlank()) defaultSkin = "default";
         if (maxTaskSeconds < 0) maxTaskSeconds = 0;
+        if (performancePreset == null || performancePreset.isBlank()) performancePreset = "normal";
     }
 
     private static void backup(Path source) {

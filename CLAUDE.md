@@ -119,6 +119,10 @@ can do and how it evolved.
 - **Developer Mode** — collapsible section at the bottom exposes low-level
   settings (`actionTickDelay`, `maxTaskSeconds`, `fleeHealthPercent`) with
   inline warnings. Documented in `developer.md`.
+- **Performance preset** — cycle button at the top of the right column:
+  **Normal** (default), **Opus** (high-end, full AI), **Potato** (low-end,
+  reduced AI activity). Selecting a preset auto-fills temperature, max tokens,
+  active analysis toggle, and all developer-mode fields at once.
 
 ### Command execution
 - Can run `/setblock`, `/fill`, `/give`, `/tp`, `/effect`, and similar
@@ -129,6 +133,15 @@ can do and how it evolved.
 ---
 
 ## Changelog
+
+### 2.10.0
+- **Performance presets** — new cycle button in `/ai menu` lets you pick
+  **Normal** (default), **Opus** (high-end full AI: faster execution, more
+  tokens, longer watchdog), or **Potato** (low-end: slow execution, fewer
+  tokens, active analysis disabled). Selecting a preset auto-fills all
+  relevant sliders and toggles including the hidden developer-mode fields.
+- `ModConfig` and `ConfigData` carry a `performancePreset` field so the
+  selected preset persists across sessions.
 
 ### 2.9.0
 - **Developer Mode GUI** — collapsible section in `/ai menu` exposes three

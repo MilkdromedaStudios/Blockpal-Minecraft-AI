@@ -37,6 +37,7 @@ public class AiConfigScreen extends Screen {
     private CycleButton<Boolean> activeButton;
     private CycleButton<Boolean> debugButton;
     private CycleButton<Boolean> commandsButton;
+    private CycleButton<String> presetButton;
     private EditBox nameBox;
     private EditBox tokenBox;
     private EditBox apiUrlBox;
@@ -56,6 +57,14 @@ public class AiConfigScreen extends Screen {
     /** Whether the developer section is currently expanded. Survives rebuilds. */
     private boolean devMode = false;
 
+    /**
+     * Dev-field values tracked independently from the sliders so a preset can set
+     * them even when the developer section is collapsed (sliders are null).
+     */
+    private int pendingActionTickDelay;
+    private int pendingMaxTaskSeconds;
+    private double pendingFleeHealth;
+
     private ConfigData baseline;
     private boolean tokenSet;
     private boolean saveOnClose = true;
@@ -67,6 +76,9 @@ public class AiConfigScreen extends Screen {
         super(Component.literal("AI Assistant Settings"));
         this.initial = initial;
         this.tokenSet = initial.tokenSet();
+        this.pendingActionTickDelay = initial.actionTickDelay();
+        this.pendingMaxTaskSeconds = initial.maxTaskSeconds();
+        this.pendingFleeHealth = initial.fleeHealthPercent();
     }
 
     @Override
@@ -77,7 +89,7 @@ public class AiConfigScreen extends Screen {
 
         addRenderableOnly(new StringWidget(0, 6, this.width, 12, this.title, this.font));
 
-        // ── left column: identity & connection ──
+        // -- left column: identity & connection --
         int ly = TOP;
         nameBox = labeledBox(left, ly, "Assistant name", initial.defaultName(), 32);
         ly += BOX_ROW;
@@ -88,13 +100,23 @@ public class AiConfigScreen extends Screen {
         apiUrlBox = labeledBox(left, ly, "API URL", initial.apiUrl(), 256);
         ly += BOX_ROW;
         tokenBox = labeledBox(left, ly, "API token", "", 256);
-        tokenBox.setHint(Component.literal(initial.tokenSet() ? "set — blank keeps it" : "not set"));
+        tokenBox.setHint(Component.literal(initial.tokenSet() ? "set - blank keeps it" : "not set"));
         ly += BOX_ROW;
         debugButton = addToggle(left, ly, "Debug logging", initial.debugLogging());
         ly += ROW;
 
-        // ── right column: behaviour toggles + sliders ──
+        // -- right column: behaviour toggles + sliders --
         int ry = TOP;
+
+        // Performance preset selector
+        String currentPreset = initial.performancePreset() != null ? initial.performancePreset() : "normal";
+        presetButton = CycleButton.<String>builder(s -> Component.literal(presetLabel(s)), currentPreset)
+                .withValues("normal", "opus", "potato")
+                .create(right, ry, COL_W, FIELD_H, Component.literal("Preset"),
+                        (btn, val) -> applyPreset(val));
+        addRenderableWidget(presetButton);
+        ry += ROW;
+
         listenButton = addToggle(right, ry, "Chat listening", initial.chatListening());
         ry += ROW;
         activeButton = addToggle(right, ry, "Active analysis", initial.activeMode());
@@ -114,10 +136,10 @@ public class AiConfigScreen extends Screen {
 
         int contentBottom = Math.max(ly, ry) + 4;
 
-        // ── developer mode toggle ──
+        // -- developer mode toggle --
         int devToggleY = contentBottom + 6;
         addRenderableWidget(Button.builder(
-                        Component.literal(devMode ? "▼ Developer Mode  [ON]" : "▶ Developer Mode  [OFF]"),
+                        Component.literal(devMode ? "▼ Developer Mode  [ON]" : "► Developer Mode  [OFF]"),
                         b -> { devMode = !devMode; rebuildWidgets(); })
                 .bounds(left, devToggleY, totalW, FIELD_H)
                 .build());
@@ -130,7 +152,6 @@ public class AiConfigScreen extends Screen {
             int dr = left + dw + COL_GAP;
             int dy = devToggleY + ROW;
 
-            // Warning label
             addRenderableOnly(new StringWidget(left, dy, totalW, 9,
                     Component.literal("⚠  These settings can cause lag or crash the game. See developer.md.")
                             .withStyle(s -> s.withColor(0xFF5555)),
@@ -138,12 +159,12 @@ public class AiConfigScreen extends Screen {
             dy += 12;
 
             actionTickDelaySlider = addSlider(dl, dy, "Action tick delay (0=every tick!)", 0, 40,
-                    initial.actionTickDelay(), true, dw);
+                    pendingActionTickDelay, true, dw);
             maxTaskSecondsSlider = addSlider(dr, dy, "Task watchdog sec (0=disabled!)", 0, 600,
-                    initial.maxTaskSeconds(), true, dw);
+                    pendingMaxTaskSeconds, true, dw);
             dy += ROW;
             fleeHealthSlider = addSlider(dl, dy, "Flee health % (0=never flees!)", 0.0, 1.0,
-                    initial.fleeHealthPercent(), false, dw);
+                    pendingFleeHealth, false, dw);
             dy += ROW;
 
             devSectionBottom = dy;
@@ -153,7 +174,7 @@ public class AiConfigScreen extends Screen {
             fleeHealthSlider = null;
         }
 
-        // ── action bar ──
+        // -- action bar --
         actionBarY = Math.min(devSectionBottom + 8, this.height - FIELD_H - 8);
         int bw = 100;
         int gap = 8;
@@ -171,6 +192,58 @@ public class AiConfigScreen extends Screen {
 
         baseline = buildData();
     }
+
+    // -- preset helpers --
+
+    private static String presetLabel(String preset) {
+        return switch (preset) {
+            case "opus"   -> "Preset: Opus  ***";
+            case "potato" -> "Preset: Potato  (low)";
+            default       -> "Preset: Normal";
+        };
+    }
+
+    /**
+     * Applies a named preset to all relevant visible widgets and stores the
+     * dev-field values so they survive with the sliders hidden.
+     */
+    private void applyPreset(String preset) {
+        switch (preset) {
+            case "opus" -> {
+                listenButton.setValue(true);
+                activeButton.setValue(true);
+                temperatureSlider.setCurrent(0.8);
+                maxTokensSlider.setCurrent(1024);
+                pendingActionTickDelay = 2;
+                pendingMaxTaskSeconds = 600;
+                pendingFleeHealth = 0.2;
+            }
+            case "potato" -> {
+                listenButton.setValue(true);
+                activeButton.setValue(false);
+                temperatureSlider.setCurrent(0.5);
+                maxTokensSlider.setCurrent(256);
+                pendingActionTickDelay = 20;
+                pendingMaxTaskSeconds = 120;
+                pendingFleeHealth = 0.25;
+            }
+            default -> {
+                listenButton.setValue(true);
+                activeButton.setValue(true);
+                temperatureSlider.setCurrent(0.7);
+                maxTokensSlider.setCurrent(512);
+                pendingActionTickDelay = 8;
+                pendingMaxTaskSeconds = 300;
+                pendingFleeHealth = 0.25;
+            }
+        }
+        // If dev sliders are open, update them too so they stay in sync
+        if (actionTickDelaySlider != null) actionTickDelaySlider.setCurrent(pendingActionTickDelay);
+        if (maxTaskSecondsSlider != null)  maxTaskSecondsSlider.setCurrent(pendingMaxTaskSeconds);
+        if (fleeHealthSlider != null)      fleeHealthSlider.setCurrent(pendingFleeHealth);
+    }
+
+    // -- widget factories --
 
     private EditBox labeledBox(int x, int y, String label, String value, int maxLen) {
         addRenderableOnly(new StringWidget(x, y - 10, COL_W, 9, Component.literal(label), this.font));
@@ -200,7 +273,14 @@ public class AiConfigScreen extends Screen {
         return slider;
     }
 
+    // -- data --
+
     private ConfigData buildData() {
+        // Flush dev-slider values back to pending fields so rebuildWidgets keeps them
+        if (actionTickDelaySlider != null) pendingActionTickDelay = (int) Math.round(actionTickDelaySlider.current());
+        if (maxTaskSecondsSlider  != null) pendingMaxTaskSeconds  = (int) Math.round(maxTaskSecondsSlider.current());
+        if (fleeHealthSlider      != null) pendingFleeHealth      = fleeHealthSlider.current();
+
         return new ConfigData(
                 listenButton.getValue(),
                 activeButton.getValue(),
@@ -217,12 +297,10 @@ public class AiConfigScreen extends Screen {
                 commandsButton.getValue(),
                 (int) Math.round(commandLevelSlider.current()),
                 skinBox.getValue(),
-                actionTickDelaySlider != null ? (int) Math.round(actionTickDelaySlider.current())
-                        : initial.actionTickDelay(),
-                maxTaskSecondsSlider != null ? (int) Math.round(maxTaskSecondsSlider.current())
-                        : initial.maxTaskSeconds(),
-                fleeHealthSlider != null ? fleeHealthSlider.current()
-                        : initial.fleeHealthPercent());
+                pendingActionTickDelay,
+                pendingMaxTaskSeconds,
+                pendingFleeHealth,
+                presetButton.getValue());
     }
 
     private void sendCurrent() {
@@ -230,7 +308,7 @@ public class AiConfigScreen extends Screen {
         if (!tokenBox.getValue().isBlank()) {
             tokenSet = true;
             tokenBox.setValue("");
-            tokenBox.setHint(Component.literal("set — blank keeps it"));
+            tokenBox.setHint(Component.literal("set - blank keeps it"));
         }
         baseline = buildData();
     }
@@ -253,7 +331,8 @@ public class AiConfigScreen extends Screen {
                 || !eq(c.defaultSkin(), baseline.defaultSkin())
                 || c.actionTickDelay() != baseline.actionTickDelay()
                 || c.maxTaskSeconds() != baseline.maxTaskSeconds()
-                || Double.compare(c.fleeHealthPercent(), baseline.fleeHealthPercent()) != 0;
+                || Double.compare(c.fleeHealthPercent(), baseline.fleeHealthPercent()) != 0
+                || !eq(c.performancePreset(), baseline.performancePreset());
     }
 
     private static boolean eq(String a, String b) {
