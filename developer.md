@@ -1,8 +1,8 @@
 # Developer Mode Settings
 
-These settings are hidden behind the **Developer Mode** toggle in `/ai menu` because
-misconfiguring them can cause **lag spikes, server freezes, or crashes**. Only change
-them if you understand what each one does.
+These settings live on the **Developer** tab in `/ai menu` because misconfiguring
+them can cause **lag spikes, server freezes, or crashes**. Only change them if you
+understand what each one does.
 
 ---
 
@@ -71,7 +71,7 @@ Use `/ai settings` to reset individual values:
 ```
 /ai settings action_tick_delay 2
 /ai settings max_task_seconds 300
-/ai settings flee_health_percent 0.25
+/ai settings flee_health 0.25
 ```
 
-Or open `/ai menu`, expand **Developer Mode**, and drag the sliders back to their default positions before clicking **Save**.
+Or open `/ai menu`, switch to the **Developer** tab, and drag the sliders back to their default positions before clicking **Save**.

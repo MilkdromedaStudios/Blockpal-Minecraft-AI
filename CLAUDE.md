@@ -82,7 +82,8 @@ can do and how it evolved.
 | `/ai listen on\|off` | Toggle chat listening |
 | `/ai active on\|off` | Toggle active analysis |
 | `/ai commands on\|off` | Allow/block command execution |
-| `/ai settings [key] [value]` | View or change any setting |
+| `/ai settings` | List all current settings |
+| `/ai settings <key> <value>` | Change any one setting (tab-complete the key) |
 | `/ai <task>` | Give a natural-language task |
 
 ### Inventory & equipment
@@ -116,31 +117,47 @@ can do and how it evolved.
 ### Settings & config
 - All settings persist in **`config/ai-assistant/config.json`**
   (auto-migrated from the old flat `config/ai-assistant.json`).
-- Config survives mod updates; new fields are added with defaults without
-  wiping existing values.
+- The file carries a **`configVersion`** stamp. If it's missing or corrupt it's
+  regenerated from defaults; if it's from an older mod version, newly-added
+  fields are filled with their intended defaults (rather than Java's
+  false/0) via a `migrate()` step, while existing values like `hfToken` are
+  preserved. So your API key carries across mod updates, and a deleted file just
+  comes back as defaults.
 - Full list of settings: `hfToken`, `hfModel`, `apiUrl`, `maxNewTokens`,
   `temperature`, `debugLogging`, `actionTickDelay`, `followDistance`,
   `guardRadius`, `fleeHealthPercent`, `allowCommands`,
   `commandPermissionLevel`, `chatListening`, `activeMode`, `defaultName`,
-  `defaultSkin`, `maxTaskSeconds`.
+  `defaultSkin`, `maxTaskSeconds`, `performancePreset`, `sneakToOpenMenu`,
+  `configVersion`.
+- **Every setting is also command-configurable**: `/ai settings <key> <value>`
+  is a single generic setter (tab-complete the key) covering all of the above,
+  so the command surface stays small.
 
 ### In-game settings GUI
-- Opened via `/ai menu` or sneak-right-click on the assistant.
-- Two-column layout: identity fields on the left, toggles and sliders on the
-  right; everything fits on one screen.
+- Opened via `/ai menu` or — unless disabled — sneak-right-click on the
+  assistant. The sneak shortcut can trip accidentally, so it's toggleable
+  (`sneakToOpenMenu`, on the Behavior tab or via `/ai settings sneak_menu off`);
+  `/ai menu` always works regardless.
+- **Tabbed categories** — settings are split into **Identity**, **Behavior**,
+  **AI & API**, **Combat** and **Developer** tabs, shown one at a time. The
+  current tab reads as "pressed" in the pinned tab bar. Each setting has a hover
+  **tooltip** explaining it.
+- Values are held in a pending draft and `capture()`d on every tab switch, so
+  edits survive moving between tabs; nothing is lost until you Cancel.
 - **Save / Apply / Cancel** action bar pinned at the bottom; ESC auto-saves.
-- **Scrollable body** — settings live in a `ScrollableLayout` (mouse wheel +
-  scrollbar) so everything fits on any screen size; title and action bar stay pinned.
+- **Scrollable body** — each tab lives in a `ScrollableLayout` (mouse wheel +
+  scrollbar) so it fits on any screen size; title, tab bar and action bar stay pinned.
 - Changes sync to the server via `ConfigUpdatePayload`.
-- **Open skins folder** button (under the skin field) opens
+- **Open skins folder** button (Identity tab, under the skin field) opens
   `config/ai-assistant/skins/` in the OS file browser for drop-in custom skins.
-- **Developer Mode** — collapsible section at the bottom exposes low-level
-  settings (`actionTickDelay`, `maxTaskSeconds`, `fleeHealthPercent`) with
-  inline warnings. Documented in `developer.md`.
-- **Performance preset** — cycle button at the top of the right column:
+- **Developer tab** exposes low-level settings (`actionTickDelay`,
+  `maxTaskSeconds`, `fleeHealthPercent`) with an inline warning. Documented in
+  `developer.md`.
+- **Performance preset** — cycle button on the Behavior tab:
   **Normal** (default), **Opus** (high-end, full AI), **Potato** (low-end,
   reduced AI activity). Selecting a preset auto-fills temperature, max tokens,
-  active analysis toggle, and all developer-mode fields at once.
+  active analysis toggle, and all developer-tab fields at once (the same logic
+  is available from `/ai settings preset <name>`).
 
 ### Command execution
 - Can run `/setblock`, `/fill`, `/give`, `/tp`, `/effect`, and similar
@@ -151,6 +168,28 @@ can do and how it evolved.
 ---
 
 ## Changelog
+
+### 2.13.0
+- **Tabbed settings menu** — the `/ai menu` screen is now split into
+  **Identity / Behavior / AI & API / Combat / Developer** tabs, shown one at a
+  time with the active tab highlighted in a pinned tab bar. Every setting has a
+  hover tooltip. Values are kept in a pending draft and captured on each tab
+  switch, so edits survive moving between tabs. (Developer Mode is now its own
+  tab instead of a collapsible section.)
+- **Sneak-click to open the menu is now toggleable** — new `sneakToOpenMenu`
+  setting (default on). When off, sneak-right-clicking the assistant just
+  toggles follow/stay; `/ai menu` always opens the menu regardless. Exposed on
+  the Behavior tab and via `/ai settings sneak_menu on|off`.
+- **One generic settings command** — replaced the per-setting `/ai settings`
+  subcommands with a single `/ai settings <key> <value>` (with tab-completion of
+  the key) that covers *every* config value, including ones that previously had
+  no command (`name`, `skin`, `command_level`, `action_tick_delay`,
+  `flee_health`, `chat_listening`, `active_mode`, `allow_commands`,
+  `debug_logging`, `sneak_menu`, `preset`). Keeps the command surface small.
+- **Versioned config** — `config.json` now carries a `configVersion`; missing or
+  corrupt files regenerate from defaults, and files from older mod versions are
+  migrated so newly-added settings get their intended default (not Java's
+  false/0) while existing values like the API key are preserved.
 
 ### 2.12.1
 - **"Open skins folder" button** in the `/ai menu` settings screen (under the

@@ -109,12 +109,14 @@ public class AiAssistantEntity extends PathfinderMob {
     /**
      * Right-click control so the assistant is usable hands-free in <b>adventure
      * and creative</b> (where you can't punch/place to interact): tap to toggle
-     * follow/stay, sneak-tap to open the settings menu.
+     * follow/stay, sneak-tap to open the settings menu. The sneak-to-open shortcut
+     * can be disabled in settings (it can trip accidentally); when off, a sneak-tap
+     * just toggles follow/stay like a normal tap.
      */
     @Override
     protected InteractionResult mobInteract(Player player, InteractionHand hand) {
         if (!level().isClientSide() && player instanceof ServerPlayer sp) {
-            if (sp.isShiftKeyDown()) {
+            if (sp.isShiftKeyDown() && ModConfig.get().sneakToOpenMenu) {
                 AiNetworking.openMenuFor(sp);
             } else if (mode == Mode.FOLLOWING) {
                 stayHere();

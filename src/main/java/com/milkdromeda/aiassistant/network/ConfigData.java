@@ -38,7 +38,8 @@ public record ConfigData(
         int actionTickDelay,
         int maxTaskSeconds,
         double fleeHealthPercent,
-        String performancePreset
+        String performancePreset,
+        boolean sneakToOpenMenu
 ) {
     public static final StreamCodec<FriendlyByteBuf, ConfigData> STREAM_CODEC =
             StreamCodec.of(ConfigData::write, ConfigData::read);
@@ -65,7 +66,8 @@ public record ConfigData(
                 c.actionTickDelay,
                 c.maxTaskSeconds,
                 c.fleeHealthPercent,
-                c.performancePreset);
+                c.performancePreset,
+                c.sneakToOpenMenu);
     }
 
     /** Applies this snapshot onto the live config, clamping and keeping blanks. */
@@ -89,6 +91,7 @@ public record ConfigData(
         c.maxTaskSeconds = (int) clamp(maxTaskSeconds, 0, 3600);
         c.fleeHealthPercent = clamp(fleeHealthPercent, 0.0, 1.0);
         if (notBlank(performancePreset)) c.performancePreset = performancePreset.trim();
+        c.sneakToOpenMenu = sneakToOpenMenu;
     }
 
     private static boolean notBlank(String s) {
@@ -119,6 +122,7 @@ public record ConfigData(
         buf.writeInt(d.maxTaskSeconds);
         buf.writeDouble(d.fleeHealthPercent);
         buf.writeUtf(d.performancePreset == null ? "normal" : d.performancePreset);
+        buf.writeBoolean(d.sneakToOpenMenu);
     }
 
     private static ConfigData read(FriendlyByteBuf buf) {
@@ -141,6 +145,7 @@ public record ConfigData(
                 buf.readInt(),
                 buf.readInt(),
                 buf.readDouble(),
-                buf.readUtf());
+                buf.readUtf(),
+                buf.readBoolean());
     }
 }
