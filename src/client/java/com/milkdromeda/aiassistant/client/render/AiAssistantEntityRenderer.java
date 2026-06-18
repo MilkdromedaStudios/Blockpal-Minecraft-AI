@@ -34,6 +34,7 @@ public class AiAssistantEntityRenderer extends
      * <ul>
      *   <li>"default"/"steve" (or empty) → the vanilla Steve skin</li>
      *   <li>contains ':' → used directly as a {@code namespace:path} texture</li>
+     *   <li>a PNG dropped in {@code config/ai-assistant/skins/<name>.png} → that file</li>
      *   <li>otherwise → {@code ai-assistant:textures/entity/skins/<name>.png}</li>
      * </ul>
      */
@@ -48,6 +49,9 @@ public class AiAssistantEntityRenderer extends
             Identifier id = Identifier.tryParse(skin);
             if (id != null) return id;
         }
+        // A user-supplied PNG in the skins folder takes priority over baked-in skins.
+        Identifier runtime = RuntimeSkins.textureFor(skin);
+        if (runtime != null) return runtime;
         Identifier id = Identifier.tryParse(
                 "ai-assistant:textures/entity/skins/" + skin.toLowerCase(Locale.ROOT) + ".png");
         return id != null ? id : STEVE;
