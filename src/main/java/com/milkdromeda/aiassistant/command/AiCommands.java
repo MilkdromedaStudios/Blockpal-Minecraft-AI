@@ -155,7 +155,7 @@ public class AiCommands {
                 "§eCommands:\n" +
                 "§f/ai menu §7— open the settings screen\n" +
                 "§f/ai summon [name] §7— bring a new assistant into the world\n" +
-                "§f/ai skin <name> §7— give it a custom skin\n" +
+                "§f/ai skin <name> §7— give it a skin (built-in, or your own PNG; see /aiskins)\n" +
                 "§f/ai come §7— call it over to you\n" +
                 "§f/ai follow §7— have it follow you\n" +
                 "§f/ai stay §7— hold position and keep watch\n" +
@@ -291,8 +291,9 @@ public class AiCommands {
 
         ai.setSkin(skin);
         player.sendSystemMessage(Component.literal(
-                "§aSkin set to §f" + skin + "§a. §7(\"default\", a namespace:path.png, "
-                        + "or a name under assets/ai-assistant/textures/entity/skins/)"));
+                "§aSkin set to §f" + skin + "§a. §7Built-ins: default, robot, void, "
+                        + "slate, ember, forest, amethyst. Drop your own PNG in "
+                        + "config/ai-assistant/skins/ and run §f/aiskins list§7."));
         return 1;
     }
 

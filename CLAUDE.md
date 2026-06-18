@@ -26,8 +26,11 @@ can do and how it evolved.
 ### Companion entity
 - Spawns as a player-model entity named **Ethan** (configurable).
 - Survives in all gamemodes; right-click toggles follow/stay in adventure mode.
-- Custom skin support: built-in `default`, `steve`, `robot`, `void`, or any
-  local PNG file via `assets/ai-assistant/textures/entity/skins/`.
+- Custom skin support: built-in `default`, `steve`, `robot`, `void`, `slate`,
+  `ember`, `forest`, `amethyst`, or **your own PNG** dropped into
+  `config/ai-assistant/skins/` and applied with `/ai skin <name>` (loaded as a
+  dynamic texture at runtime — no rebuild needed). `/aiskins list` and
+  `/aiskins reload` (client-side) manage the folder.
 
 ### AI / LLM planning
 - Connects to any **OpenAI-compatible** API (HuggingFace, Ollama, OpenAI,
@@ -72,7 +75,8 @@ can do and how it evolved.
 | `/ai resume` / `/ai enable` | Re-enable after the FPS kill switch tripped |
 | `/ai locate` / `/ai where` | Find assistant |
 | `/ai name <name>` | Rename |
-| `/ai skin <name>` | Change skin |
+| `/ai skin <name>` | Change skin (built-in or your own PNG) |
+| `/aiskins list\|reload` | (client) list/reload skins in `config/ai-assistant/skins/` |
 | `/ai token <token>` | Set API token |
 | `/ai inventory` / `/ai inv` | Show carried items |
 | `/ai listen on\|off` | Toggle chat listening |
@@ -145,6 +149,22 @@ can do and how it evolved.
 ---
 
 ## Changelog
+
+### 2.12.0
+- **Drop-in custom skins** — players can now add their own skins without
+  rebuilding the mod: drop a 64×64 PNG into `config/ai-assistant/skins/` and
+  apply it with `/ai skin <name>`. Files are loaded into dynamic textures on
+  demand (new client-side `RuntimeSkins` loader, with caching and lazy GPU
+  upload). The folder is created on first launch with a `README.txt`.
+- **New client command `/aiskins`** — `list` shows the skins found in the
+  folder, `reload` re-scans and releases cached textures so an edited PNG shows
+  up without a full restart.
+- **Four new built-in skins** — `slate`, `ember`, `forest`, and `amethyst`
+  (themed colour palettes with a simple face), alongside the existing `robot`
+  and `void`.
+- Skin resolution order in the renderer is now: vanilla `default`/`steve` →
+  explicit `namespace:path` → a PNG in the skins folder → a baked-in skin.
+- `/ai skin` and `/ai help` now point at the new folder and built-ins.
 
 ### 2.11.0
 - **Scrollable settings menu** — the `/ai menu` body is now a single scrollable
