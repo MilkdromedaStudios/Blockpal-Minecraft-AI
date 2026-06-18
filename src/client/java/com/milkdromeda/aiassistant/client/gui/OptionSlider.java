@@ -30,6 +30,12 @@ public class OptionSlider extends AbstractSliderButton {
         return Math.max(0.0, Math.min(1.0, (value - min) / (max - min)));
     }
 
+    /** Programmatically set the slider to a real-unit value (clamps to range). */
+    public void setCurrent(double v) {
+        this.value = fraction(v, min, max);
+        updateMessage();
+    }
+
     /** The slider's current value in real units (not the 0–1 internal fraction). */
     public double current() {
         double v = min + this.value * (max - min);

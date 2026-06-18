@@ -37,7 +37,8 @@ public record ConfigData(
         // Developer-mode fields
         int actionTickDelay,
         int maxTaskSeconds,
-        double fleeHealthPercent
+        double fleeHealthPercent,
+        String performancePreset
 ) {
     public static final StreamCodec<FriendlyByteBuf, ConfigData> STREAM_CODEC =
             StreamCodec.of(ConfigData::write, ConfigData::read);
@@ -63,7 +64,8 @@ public record ConfigData(
                 c.defaultSkin,
                 c.actionTickDelay,
                 c.maxTaskSeconds,
-                c.fleeHealthPercent);
+                c.fleeHealthPercent,
+                c.performancePreset);
     }
 
     /** Applies this snapshot onto the live config, clamping and keeping blanks. */
@@ -86,6 +88,7 @@ public record ConfigData(
         c.actionTickDelay = (int) clamp(actionTickDelay, 0, 40);
         c.maxTaskSeconds = (int) clamp(maxTaskSeconds, 0, 3600);
         c.fleeHealthPercent = clamp(fleeHealthPercent, 0.0, 1.0);
+        if (notBlank(performancePreset)) c.performancePreset = performancePreset.trim();
     }
 
     private static boolean notBlank(String s) {
@@ -115,6 +118,7 @@ public record ConfigData(
         buf.writeInt(d.actionTickDelay);
         buf.writeInt(d.maxTaskSeconds);
         buf.writeDouble(d.fleeHealthPercent);
+        buf.writeUtf(d.performancePreset == null ? "normal" : d.performancePreset);
     }
 
     private static ConfigData read(FriendlyByteBuf buf) {
@@ -136,6 +140,7 @@ public record ConfigData(
                 buf.readUtf(),
                 buf.readInt(),
                 buf.readInt(),
-                buf.readDouble());
+                buf.readDouble(),
+                buf.readUtf());
     }
 }
