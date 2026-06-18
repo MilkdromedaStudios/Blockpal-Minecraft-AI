@@ -6,8 +6,6 @@ import com.milkdromeda.aiassistant.entity.AiAssistantEntity;
 import com.milkdromeda.aiassistant.network.ConfigData;
 import com.milkdromeda.aiassistant.network.ConfigSyncPayload;
 import com.milkdromeda.aiassistant.util.Locator;
-import com.mojang.brigadier.arguments.DoubleArgumentType;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -85,43 +83,17 @@ public class AiCommands {
                         .then(Commands.literal("config").executes(AiCommands::openMenu))
 
                         // ── advanced settings ────────────────────────────────────────
+                        // One generic setter covers every config value (tab-complete the
+                        // key) so the command surface stays small. /ai settings alone lists
+                        // the current values.
                         .then(Commands.literal("settings")
                                 .executes(AiCommands::showSettings)
-
-                                .then(Commands.literal("model")
+                                .then(Commands.argument("key", StringArgumentType.word())
+                                        .suggests(SETTING_KEYS_SUGGEST)
                                         .then(Commands.argument("value", StringArgumentType.greedyString())
-                                                .executes(ctx -> setStringSetting(ctx, "model",
-                                                        StringArgumentType.getString(ctx, "value")))))
-
-                                .then(Commands.literal("api_url")
-                                        .then(Commands.argument("value", StringArgumentType.greedyString())
-                                                .executes(ctx -> setStringSetting(ctx, "api_url",
-                                                        StringArgumentType.getString(ctx, "value")))))
-
-                                .then(Commands.literal("temperature")
-                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(0.0, 2.0))
-                                                .executes(ctx -> setSettingDouble(ctx, "temperature",
-                                                        DoubleArgumentType.getDouble(ctx, "value")))))
-
-                                .then(Commands.literal("max_tokens")
-                                        .then(Commands.argument("value", IntegerArgumentType.integer(32, 2048))
-                                                .executes(ctx -> setSettingInt(ctx, "max_tokens",
-                                                        IntegerArgumentType.getInteger(ctx, "value")))))
-
-                                .then(Commands.literal("max_task_seconds")
-                                        .then(Commands.argument("value", IntegerArgumentType.integer(0, 3600))
-                                                .executes(ctx -> setSettingInt(ctx, "max_task_seconds",
-                                                        IntegerArgumentType.getInteger(ctx, "value")))))
-
-                                .then(Commands.literal("follow_distance")
-                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(1.0, 32.0))
-                                                .executes(ctx -> setSettingDouble(ctx, "follow_distance",
-                                                        DoubleArgumentType.getDouble(ctx, "value")))))
-
-                                .then(Commands.literal("guard_radius")
-                                        .then(Commands.argument("value", DoubleArgumentType.doubleArg(4.0, 64.0))
-                                                .executes(ctx -> setSettingDouble(ctx, "guard_radius",
-                                                        DoubleArgumentType.getDouble(ctx, "value"))))))
+                                                .executes(ctx -> applySetting(ctx,
+                                                        StringArgumentType.getString(ctx, "key"),
+                                                        StringArgumentType.getString(ctx, "value"))))))
 
                         // ── /ai <task> — natural language, must be last (greedy) ──────
                         .then(Commands.argument("task", StringArgumentType.greedyString())
@@ -169,7 +141,7 @@ public class AiCommands {
                 "§f/ai active on|off §7— toggle proactive analysis of every message\n" +
                 "§f/ai commands on|off §7— let it run commands (/setblock, /fill, redstone…)\n" +
                 "§f/ai dismiss §7— send it away\n" +
-                "§f/ai settings §7— advanced configuration"
+                "§f/ai settings §7— list settings; §f/ai settings <key> <value>§7 changes any one"
         ));
         return 1;
     }
@@ -427,58 +399,123 @@ public class AiCommands {
                 "§eFollow dist:    §f" + cfg.followDistance + "\n" +
                 "§eGuard radius:   §f" + cfg.guardRadius + "\n" +
                 "§eMax task secs:  §f" + (cfg.maxTaskSeconds == 0 ? "unlimited" : cfg.maxTaskSeconds) + "\n" +
-                "§7Tip: open the full menu with §f/ai menu§7 (or sneak-right-click the assistant). "
-                        + "Or change one value with /ai settings <key> <value>."
+                "§eSneak→menu:     §f" + (cfg.sneakToOpenMenu ? "on" : "off") + "\n" +
+                "§7Tip: open the full menu with §f/ai menu§7"
+                        + (cfg.sneakToOpenMenu ? " (or sneak-right-click the assistant)" : "") + ". "
+                        + "Or change any value with §f/ai settings <key> <value>§7 (tab-complete the key)."
         ));
         return 1;
     }
 
-    private static int setStringSetting(CommandContext<CommandSourceStack> ctx, String key, String value) {
+    /** Every key accepted by {@code /ai settings <key> <value>}. */
+    private static final String[] SETTING_KEYS = {
+            "name", "skin", "model", "api_url", "token", "temperature", "max_tokens",
+            "follow_distance", "guard_radius", "command_level", "max_task_seconds",
+            "action_tick_delay", "flee_health", "chat_listening", "active_mode",
+            "allow_commands", "debug_logging", "sneak_menu", "preset"
+    };
+
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack> SETTING_KEYS_SUGGEST =
+            (ctx, builder) -> {
+                String remaining = builder.getRemaining().toLowerCase(java.util.Locale.ROOT);
+                for (String key : SETTING_KEYS) {
+                    if (key.startsWith(remaining)) builder.suggest(key);
+                }
+                return builder.buildFuture();
+            };
+
+    /** Generic setter for any config value, parsing {@code raw} to the key's type. */
+    private static int applySetting(CommandContext<CommandSourceStack> ctx, String key, String raw) {
         ServerPlayer player = getPlayer(ctx);
         if (player == null) return 0;
         ModConfig cfg = ModConfig.get();
+        key = key.toLowerCase(java.util.Locale.ROOT).trim();
+        String value = raw.trim();
 
-        switch (key) {
-            case "model"   -> cfg.hfModel = value.trim();
-            case "api_url" -> cfg.apiUrl = value.trim();
-            default -> { player.sendSystemMessage(Component.literal("Unknown setting: " + key)); return 0; }
+        try {
+            switch (key) {
+                case "name"              -> cfg.defaultName = require(value);
+                case "skin"              -> cfg.defaultSkin = require(value);
+                case "model"             -> cfg.hfModel = require(value);
+                case "api_url"           -> cfg.apiUrl = require(value);
+                case "token"             -> cfg.hfToken = value;
+                case "temperature"       -> cfg.temperature = clampD(parseD(value), 0.0, 2.0);
+                case "max_tokens"        -> cfg.maxNewTokens = clampI(parseI(value), 32, 2048);
+                case "follow_distance"   -> cfg.followDistance = clampD(parseD(value), 1.0, 32.0);
+                case "guard_radius"      -> cfg.guardRadius = clampD(parseD(value), 4.0, 64.0);
+                case "command_level"     -> cfg.commandPermissionLevel = clampI(parseI(value), 0, 4);
+                case "max_task_seconds"  -> cfg.maxTaskSeconds = clampI(parseI(value), 0, 3600);
+                case "action_tick_delay" -> cfg.actionTickDelay = clampI(parseI(value), 0, 40);
+                case "flee_health"       -> cfg.fleeHealthPercent = clampD(parseD(value), 0.0, 1.0);
+                case "chat_listening"    -> cfg.chatListening = parseBool(value);
+                case "active_mode"       -> cfg.activeMode = parseBool(value);
+                case "allow_commands"    -> cfg.allowCommands = parseBool(value);
+                case "debug_logging"     -> cfg.debugLogging = parseBool(value);
+                case "sneak_menu"        -> cfg.sneakToOpenMenu = parseBool(value);
+                case "preset"            -> applyPreset(cfg, value);
+                default -> {
+                    player.sendSystemMessage(Component.literal(
+                            "§cUnknown setting §f" + key + "§c. Valid keys: §7" + String.join(", ", SETTING_KEYS)));
+                    return 0;
+                }
+            }
+        } catch (NumberFormatException e) {
+            player.sendSystemMessage(Component.literal("§cInvalid value §f" + value + "§c for §f" + key + "§c."));
+            return 0;
+        } catch (IllegalArgumentException e) {
+            player.sendSystemMessage(Component.literal("§c" + e.getMessage()));
+            return 0;
         }
 
         ModConfig.save();
-        player.sendSystemMessage(Component.literal("§a[Settings] §f" + key + " §7= §f" + value));
+        String shown = key.equals("token") ? (value.isBlank() ? "cleared" : "set ✓") : value;
+        player.sendSystemMessage(Component.literal("§a[Settings] §f" + key + " §7= §f" + shown));
         return 1;
     }
 
-    private static int setSettingDouble(CommandContext<CommandSourceStack> ctx, String key, double value) {
-        ServerPlayer player = getPlayer(ctx);
-        if (player == null) return 0;
-        ModConfig cfg = ModConfig.get();
-
-        switch (key) {
-            case "temperature"     -> cfg.temperature = value;
-            case "follow_distance" -> cfg.followDistance = value;
-            case "guard_radius"    -> cfg.guardRadius = value;
+    /** Applies a performance preset's values to the live config (mirrors the GUI button). */
+    private static void applyPreset(ModConfig cfg, String preset) {
+        switch (preset.toLowerCase(java.util.Locale.ROOT)) {
+            case "opus" -> {
+                cfg.chatListening = true; cfg.activeMode = true;
+                cfg.temperature = 0.8; cfg.maxNewTokens = 1024;
+                cfg.actionTickDelay = 2; cfg.maxTaskSeconds = 600; cfg.fleeHealthPercent = 0.2;
+                cfg.performancePreset = "opus";
+            }
+            case "potato" -> {
+                cfg.chatListening = true; cfg.activeMode = false;
+                cfg.temperature = 0.5; cfg.maxNewTokens = 256;
+                cfg.actionTickDelay = 20; cfg.maxTaskSeconds = 120; cfg.fleeHealthPercent = 0.25;
+                cfg.performancePreset = "potato";
+            }
+            case "normal" -> {
+                cfg.chatListening = true; cfg.activeMode = true;
+                cfg.temperature = 0.7; cfg.maxNewTokens = 512;
+                cfg.actionTickDelay = 8; cfg.maxTaskSeconds = 300; cfg.fleeHealthPercent = 0.25;
+                cfg.performancePreset = "normal";
+            }
+            default -> throw new IllegalArgumentException("Preset must be normal, opus or potato.");
         }
-
-        ModConfig.save();
-        player.sendSystemMessage(Component.literal("§a[Settings] §f" + key + " §7= §f" + value));
-        return 1;
     }
 
-    private static int setSettingInt(CommandContext<CommandSourceStack> ctx, String key, int value) {
-        ServerPlayer player = getPlayer(ctx);
-        if (player == null) return 0;
-        ModConfig cfg = ModConfig.get();
-
-        switch (key) {
-            case "max_tokens" -> cfg.maxNewTokens = value;
-            case "max_task_seconds" -> cfg.maxTaskSeconds = value;
-        }
-
-        ModConfig.save();
-        player.sendSystemMessage(Component.literal("§a[Settings] §f" + key + " §7= §f" + value));
-        return 1;
+    private static String require(String v) {
+        if (v == null || v.isBlank()) throw new IllegalArgumentException("Value can't be empty.");
+        return v;
     }
+
+    private static double parseD(String v) { return Double.parseDouble(v); }
+    private static int parseI(String v) { return Integer.parseInt(v); }
+
+    private static boolean parseBool(String v) {
+        return switch (v.toLowerCase(java.util.Locale.ROOT)) {
+            case "on", "true", "yes", "1", "enable", "enabled" -> true;
+            case "off", "false", "no", "0", "disable", "disabled" -> false;
+            default -> throw new IllegalArgumentException("Use on/off (or true/false) for " + v + ".");
+        };
+    }
+
+    private static double clampD(double v, double lo, double hi) { return Math.max(lo, Math.min(hi, v)); }
+    private static int clampI(int v, int lo, int hi) { return Math.max(lo, Math.min(hi, v)); }
 
     // ── /ai <task> ────────────────────────────────────────────────────────────
 

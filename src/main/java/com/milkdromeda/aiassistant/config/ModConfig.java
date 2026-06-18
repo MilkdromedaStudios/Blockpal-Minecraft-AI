@@ -11,6 +11,15 @@ import java.nio.file.StandardCopyOption;
 
 public class ModConfig {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
+
+    /**
+     * Schema version of this config file. Bumped whenever a new setting is added
+     * so an older file (which lacks the field) can be migrated to a sensible
+     * default instead of silently inheriting Java's zero/false. A file with no
+     * version at all reads back as {@code 0} and is migrated from there.
+     */
+    public static final int CURRENT_CONFIG_VERSION = 1;
+
     // Settings (including the API key) live in their own folder under the game's
     // config directory. That directory is untouched when you replace the mod jar,
     // so your key and preferences carry over when you update the mod.
@@ -70,6 +79,15 @@ public class ModConfig {
     // Selecting a preset auto-fills several settings at once in the config GUI.
     public String performancePreset = "normal";
 
+    // When true, sneak-right-clicking the assistant opens the settings menu.
+    // Some players find this trips accidentally, so it can be turned off; the
+    // menu is always reachable with /ai menu regardless of this setting.
+    public boolean sneakToOpenMenu = true;
+
+    // Schema version this file was written with — see CURRENT_CONFIG_VERSION.
+    // Used only for migration; players don't need to touch it.
+    public int configVersion = CURRENT_CONFIG_VERSION;
+
     public static ModConfig get() {
         if (instance == null) load();
         return instance;
@@ -84,6 +102,7 @@ public class ModConfig {
                 ModConfig loaded = GSON.fromJson(r, ModConfig.class);
                 if (loaded != null) {
                     instance = loaded;
+                    instance.migrate();
                     instance.normalize();
                     save();   // (re)write into the folder, migrating the legacy file across
                     return;
@@ -109,6 +128,20 @@ public class ModConfig {
         } catch (IOException e) {
             System.err.println("[AI-Assistant] Failed to save config: " + e.getMessage());
         }
+    }
+
+    /**
+     * Upgrades a config written by an older mod version. Fields that didn't exist
+     * then deserialize to Java's default (false/0), so we restore their intended
+     * default here based on the file's recorded {@link #configVersion}, then stamp
+     * it as current. New installs (already at the current version) are untouched.
+     */
+    private void migrate() {
+        if (configVersion < 1) {
+            // sneakToOpenMenu was added in v1; older files default it to true.
+            sneakToOpenMenu = true;
+        }
+        configVersion = CURRENT_CONFIG_VERSION;
     }
 
     /** Fills in sensible defaults for any field that came back null/blank/invalid. */
