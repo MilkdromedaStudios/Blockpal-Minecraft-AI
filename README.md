@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⬡ AI ASSISTANT
+# ⬢ AI ASSISTANT ⬢
 
 **A Minecraft AI companion that builds, fights, and thinks**
 
