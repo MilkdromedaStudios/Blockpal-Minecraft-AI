@@ -132,6 +132,8 @@ can do and how it evolved.
 - **Scrollable body** — settings live in a `ScrollableLayout` (mouse wheel +
   scrollbar) so everything fits on any screen size; title and action bar stay pinned.
 - Changes sync to the server via `ConfigUpdatePayload`.
+- **Open skins folder** button (under the skin field) opens
+  `config/ai-assistant/skins/` in the OS file browser for drop-in custom skins.
 - **Developer Mode** — collapsible section at the bottom exposes low-level
   settings (`actionTickDelay`, `maxTaskSeconds`, `fleeHealthPercent`) with
   inline warnings. Documented in `developer.md`.
@@ -149,6 +151,12 @@ can do and how it evolved.
 ---
 
 ## Changelog
+
+### 2.12.1
+- **"Open skins folder" button** in the `/ai menu` settings screen (under the
+  skin field) — opens `config/ai-assistant/skins/` in the OS file browser via
+  `Util.getPlatform().openPath(...)`, creating it first if needed, so players
+  can drop in PNGs without hunting for the folder by hand.
 
 ### 2.12.0
 - **Drop-in custom skins** — players can now add their own skins without
