@@ -1,5 +1,6 @@
 package com.milkdromeda.aiassistant.client.gui;
 
+import com.milkdromeda.aiassistant.client.render.RuntimeSkins;
 import com.milkdromeda.aiassistant.network.ConfigData;
 import com.milkdromeda.aiassistant.network.ConfigUpdatePayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -11,6 +12,10 @@ import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.layouts.LinearLayout;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Util;
+
+import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * A real settings menu for the AI assistant: text fields, toggles and sliders
@@ -91,6 +96,9 @@ public class AiConfigScreen extends Screen {
 
         nameBox = bodyBox(body, "Assistant name", initial.defaultName(), 32);
         skinBox = bodyBox(body, "Default skin", initial.defaultSkin(), 64);
+        body.addChild(Button.builder(Component.literal("📁 Open skins folder"),
+                        b -> openSkinsFolder())
+                .bounds(0, 0, W, FIELD_H).build());
         modelBox = bodyBox(body, "Model", initial.model(), 128);
         apiUrlBox = bodyBox(body, "API URL", initial.apiUrl(), 256);
         tokenBox = bodyBox(body, "API token", "", 256);
@@ -206,6 +214,16 @@ public class AiConfigScreen extends Screen {
         if (actionTickDelaySlider != null) actionTickDelaySlider.setCurrent(pendingActionTickDelay);
         if (maxTaskSecondsSlider != null)  maxTaskSecondsSlider.setCurrent(pendingMaxTaskSeconds);
         if (fleeHealthSlider != null)      fleeHealthSlider.setCurrent(pendingFleeHealth);
+    }
+
+    /** Open the custom-skins folder in the OS file browser so the player can drop PNGs in. */
+    private void openSkinsFolder() {
+        try {
+            Files.createDirectories(RuntimeSkins.SKIN_DIR);
+        } catch (IOException ignored) {
+            // openPath below still works if the folder already exists.
+        }
+        Util.getPlatform().openPath(RuntimeSkins.SKIN_DIR);
     }
 
     // -- body widget factories --
