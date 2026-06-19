@@ -1,6 +1,6 @@
 <div align="center">
 
-# ⬢ NEXUS AI ⬢
+# ⬢ BLOCKPAL AI ⬢
 
 **A Minecraft AI companion that builds, fights, and thinks.**
 
