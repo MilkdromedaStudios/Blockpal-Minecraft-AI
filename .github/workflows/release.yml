@@ -3,8 +3,14 @@ name: Release to Modrinth
 # Publishes a build to Modrinth.
 #
 # Triggers:
-#   * Pushing a tag like  v3.1.0   (recommended — keeps tag == mod_version)
-#   * Manually from the Actions tab (workflow_dispatch)
+#   * Every pull request               (auto-publishes once per mod_version)
+#   * Pushing a tag like  v3.1.0        (recommended for tagged releases)
+#   * Manually from the Actions tab     (workflow_dispatch)
+#
+# Idempotent: before uploading it asks Modrinth whether this exact version
+# (<mod_version>+mc<minecraft_version>) already exists. If it does, the publish
+# step is skipped — so re-running on every PR only ever uploads a given version
+# once. Bump `mod_version` in gradle.properties to ship a new one.
 #
 # The uploaded jar is renamed to  Blockpal-<mod_version>-<minecraft_version>.jar
 # e.g.  Blockpal-3.1.0-26.2.jar
@@ -16,9 +22,13 @@ name: Release to Modrinth
 #                             (https://modrinth.com/settings/pats)
 #   Variables (or hard-code below):
 #     MODRINTH_PROJECT_ID   – the project's ID or slug (e.g. "blockpal")
+#
+# Note: secrets are NOT available to pull requests opened from forks, so the
+# publish is automatically skipped there (build still runs).
 # ──────────────────────────────────────────────────────────────────────────
 
 on:
+  pull_request:
   push:
     tags:
       - 'v*'
@@ -58,14 +68,43 @@ jobs:
           cp "build/libs/blockpal-${{ steps.ver.outputs.mod }}.jar" \
              "upload/Blockpal-${{ steps.ver.outputs.mod }}-${{ steps.ver.outputs.mc }}.jar"
 
+      - name: Decide whether to publish
+        id: gate
+        env:
+          PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: |
+          VERSION="${{ steps.ver.outputs.mod }}+mc${{ steps.ver.outputs.mc }}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$PROJECT_ID" ] || [ -z "$MODRINTH_TOKEN" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::MODRINTH_PROJECT_ID and/or MODRINTH_TOKEN not set (or unavailable on a fork PR) — skipping publish."
+            exit 0
+          fi
+
+          # Ask Modrinth whether this version already exists.
+          EXISTING=$(curl -sf "https://api.modrinth.com/v2/project/${PROJECT_ID}/version" 2>/dev/null \
+            | jq -r --arg v "$VERSION" 'if type=="array" then (map(.version_number) | index($v)) else null end' 2>/dev/null \
+            || echo "null")
+
+          if [ "$EXISTING" != "null" ] && [ -n "$EXISTING" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Version $VERSION already exists on Modrinth — skipping publish."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Version $VERSION not found on Modrinth — will publish."
+          fi
+
       - name: Publish to Modrinth
+        if: steps.gate.outputs.publish == 'true'
         uses: Kir-Antipov/mc-publish@v3.3
         with:
           modrinth-id: ${{ vars.MODRINTH_PROJECT_ID }}
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           files: upload/Blockpal-*.jar
           name: "Blockpal ${{ steps.ver.outputs.mod }} (MC ${{ steps.ver.outputs.mc }})"
-          version: "${{ steps.ver.outputs.mod }}+mc${{ steps.ver.outputs.mc }}"
+          version: "${{ steps.gate.outputs.version }}"
           version-type: release
           loaders: fabric
           game-versions: "${{ steps.ver.outputs.mc }}"

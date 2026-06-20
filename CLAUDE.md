@@ -186,9 +186,12 @@ can do and how it evolved.
 - **API fix for 26.2** — `Minecraft.setScreen(...)` was renamed to
   `setScreenAndShow(...)`; updated the one call site in `AiAssistantClient`
   (opening the `/ai menu` settings screen). No other source changes were needed.
-- **New `release.yml` workflow** — publishes to Modrinth on a `v*` tag push (or
-  manual run). The uploaded jar is renamed to
+- **New `release.yml` workflow** — publishes to Modrinth on every pull request,
+  a `v*` tag push, or a manual run. The uploaded jar is renamed to
   `Blockpal-<mod_version>-<minecraft_version>.jar` (e.g. `Blockpal-3.1.0-26.2.jar`).
+  It's **idempotent** — it queries Modrinth for `<mod_version>+mc<minecraft_version>`
+  first and skips the upload if that version already exists, so running on every PR
+  only publishes a given version once (bump `mod_version` to ship a new one).
   Requires a `MODRINTH_TOKEN` secret and a `MODRINTH_PROJECT_ID` variable.
 
 ### 3.0.0
