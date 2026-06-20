@@ -45,4 +45,23 @@ Tested jars are copied into the repo's `builds/` folder so they're available wit
 compiling. History is kept — every released `mod_version` keeps its own
 `builds/blockpal-<version>.jar`; old builds are never deleted. (`builds/` is not
 gitignored; only `build/` is.)
+
+## Releasing to Modrinth
+
+Pushing a tag like `v3.1.0` (or running the **Release to Modrinth** workflow
+manually) builds the mod, renames the jar to
+`Blockpal-<mod_version>-<minecraft_version>.jar` (e.g. `Blockpal-3.1.0-26.2.jar`)
+and uploads it to Modrinth via `.github/workflows/release.yml`.
+
+One-time setup (repo **Settings ▸ Secrets and variables ▸ Actions**):
+
+| Kind | Name | Value |
+|------|------|-------|
+| Secret | `MODRINTH_TOKEN` | a Modrinth PAT with the *Create versions* scope |
+| Variable | `MODRINTH_PROJECT_ID` | the Modrinth project's ID or slug |
+
+```bash
+git tag v3.1.0
+git push origin v3.1.0   # triggers the release
+```
 </content>

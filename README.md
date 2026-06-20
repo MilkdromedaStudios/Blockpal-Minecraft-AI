@@ -4,8 +4,8 @@
 
 **A Minecraft AI companion that builds, fights, and thinks.**
 
-[![Mod Version](https://img.shields.io/badge/mod-v3.0.0-6c63ff?style=for-the-badge)](builds/)
-[![Minecraft](https://img.shields.io/badge/Minecraft-26.1.2-62b96e?style=for-the-badge)](https://fabricmc.net/)
+[![Mod Version](https://img.shields.io/badge/mod-v3.1.0-6c63ff?style=for-the-badge)](builds/)
+[![Minecraft](https://img.shields.io/badge/Minecraft-26.2-62b96e?style=for-the-badge)](https://fabricmc.net/)
 [![Fabric](https://img.shields.io/badge/Fabric_Loader-0.19.3+-dbb74b?style=for-the-badge)](https://fabricmc.net/)
 [![Java](https://img.shields.io/badge/Java-25+-e76f51?style=for-the-badge)](https://adoptium.net/)
 [![License](https://img.shields.io/badge/License-MIT-264653?style=for-the-badge)](LICENSE)
