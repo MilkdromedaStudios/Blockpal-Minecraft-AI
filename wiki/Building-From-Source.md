@@ -48,10 +48,17 @@ gitignored; only `build/` is.)
 
 ## Releasing to Modrinth
 
-Pushing a tag like `v3.1.0` (or running the **Release to Modrinth** workflow
-manually) builds the mod, renames the jar to
+The **Release to Modrinth** workflow (`.github/workflows/release.yml`) runs on
+**every pull request**, on a `v*` tag push, and on a manual dispatch. It builds
+the mod, renames the jar to
 `Blockpal-<mod_version>-<minecraft_version>.jar` (e.g. `Blockpal-3.1.0-26.2.jar`)
-and uploads it to Modrinth via `.github/workflows/release.yml`.
+and uploads it to Modrinth via `Kir-Antipov/mc-publish`.
+
+It is **idempotent**: before uploading it asks Modrinth whether
+`<mod_version>+mc<minecraft_version>` already exists and, if so, skips the
+publish. So running on every PR only ever uploads a given version once — bump
+`mod_version` in `gradle.properties` to ship a new one. (Publishing is also
+skipped automatically on fork PRs, where the secrets aren't available.)
 
 One-time setup (repo **Settings ▸ Secrets and variables ▸ Actions**):
 
