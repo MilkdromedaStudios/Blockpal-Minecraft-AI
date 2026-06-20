@@ -1,6 +1,6 @@
 # Installation
 
-Blockpal is a **Fabric** mod for Minecraft **26.1.2**. You need the
+Blockpal is a **Fabric** mod for Minecraft **26.2**. You need the
 [Fabric Loader](https://fabricmc.net/use/installer/) and
 [Fabric API](https://modrinth.com/mod/fabric-api) installed too.
 
@@ -16,8 +16,8 @@ Blockpal is a **Fabric** mod for Minecraft **26.1.2**. You need the
 
 ```
 mods/
-├── blockpal-3.0.0.jar   ← this mod
-├── fabric-api-0.151.0+26.1.2.jar
+├── blockpal-3.1.0.jar   ← this mod
+├── fabric-api-0.152.2+26.2.jar
 └── ...
 ```
 
@@ -41,7 +41,8 @@ Output lands in `build/libs/blockpal-<version>.jar`.
 
 | Mod version | Minecraft | Fabric Loader | Fabric API |
 |-------------|-----------|---------------|------------|
-| **3.0.0** *(latest)* | 26.1.2 | 0.19.3+ | 0.151.0+ |
+| **3.1.0** *(latest)* | 26.2 | 0.19.3+ | 0.152.2+ |
+| 3.0.0 | 26.1.2 | 0.19.3+ | 0.151.0+ |
 | 2.14.x | 26.1.2 | 0.19.3+ | 0.151.0+ |
 | 2.13.x | 26.1.2 | 0.19.3+ | 0.151.0+ |
 
